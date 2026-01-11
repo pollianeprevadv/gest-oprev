@@ -20,6 +20,14 @@ export enum Department {
   GENERAL = 'Geral',
 }
 
+export enum ClientStatus {
+  LEAD = 'Lead',
+  CONTRACTED = 'Contratado',
+  IN_PROGRESS = 'Em Andamento',
+  COMPLETED = 'Concluído',
+  CANCELLED = 'Cancelado',
+}
+
 export interface Commission {
   id: string;
   lawyerName: string;
@@ -38,6 +46,12 @@ export interface Commission {
   approvedAt?: string;
   updatedAt?: string;
   noCommission?: boolean; // Flag: lançamento sem comissão (ex: gestor lançando para a casa)
+  // Dados do Lead coletados pelo comercial
+  leadPhoneNumber?: string;
+  leadExpectedBirthDate?: string;
+  leadHasKidsUnder5?: boolean;
+  leadWorkStatus?: string;
+  leadHasLawyer?: boolean;
 }
 
 export interface User {
@@ -60,8 +74,24 @@ export interface DashboardStats {
 export interface Client {
   id: string;
   name: string;
+  status?: ClientStatus; // Estágio no fluxo: Lead → Contratado → Em Andamento → Concluído
+  responsibleDepartment?: Department; // Departamento atual responsável
+  responsibleUserId?: string; // Colaborador responsável
+  responsibleUserName?: string;
   note?: string;
   lastContactDate?: string;
+  birthDate?: string;
+  gpsDueDate?: string;
+  cpf?: string;
+  govPassword?: string;
+  contractSignatureDate?: string;
+  phoneNumber?: string;
+  expectedBirthDate?: string;
+  hasKidsUnder5?: boolean;
+  workStatus?: string;
+  hasLawyer?: boolean;
+  createdAt?: string; // Data de cadastro
+  updatedAt?: string;
 }
 
 export interface AuditLog {

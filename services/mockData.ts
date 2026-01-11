@@ -12,8 +12,8 @@ export const mockCommissions: Commission[] = [
     commissionPercentage: 10,
     commissionValue: 15000,
     status: CommissionStatus.PAID,
-    date: '2024-05-15',
-    contractDate: '2024-05-10',
+    date: '2026-01-05',
+    contractDate: '2026-01-03',
     observations: 'Pagamento realizado via TED.'
   },
   {
@@ -27,8 +27,8 @@ export const mockCommissions: Commission[] = [
     commissionPercentage: 8,
     commissionValue: 6800,
     status: CommissionStatus.PENDING,
-    date: '2024-05-18',
-    contractDate: '2024-05-12',
+    date: '2026-01-08',
+    contractDate: '2026-01-06',
     observations: 'Aguardando compensação da primeira parcela.'
   },
   {
@@ -42,8 +42,8 @@ export const mockCommissions: Commission[] = [
     commissionPercentage: 5,
     commissionValue: 125000,
     status: CommissionStatus.PENDING,
-    date: '2024-05-20',
-    contractDate: '2024-05-15',
+    date: '2026-01-10',
+    contractDate: '2026-01-08',
   },
   {
     id: '4',
@@ -56,8 +56,8 @@ export const mockCommissions: Commission[] = [
     commissionPercentage: 12,
     commissionValue: 5400,
     status: CommissionStatus.PAID,
-    date: '2024-05-10',
-    contractDate: '2024-05-01',
+    date: '2026-01-02',
+    contractDate: '2025-12-28',
     observations: 'Registro de marca internacional.'
   },
   {
@@ -71,8 +71,8 @@ export const mockCommissions: Commission[] = [
     commissionPercentage: 7,
     commissionValue: 22400,
     status: CommissionStatus.CANCELED,
-    date: '2024-05-01',
-    contractDate: '2024-04-25',
+    date: '2025-12-20',
+    contractDate: '2025-12-15',
     observations: 'Cliente desistiu do processo.'
   },
 ];

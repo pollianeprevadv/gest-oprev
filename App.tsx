@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
-import { Commission, User, Department, CommissionStatus, Client, AuditLog, Notice, UserRole } from './types';
+import { Commission, User, Department, CommissionStatus, Client, AuditLog, Notice, UserRole, ClientStatus } from './types';
 import { initialUsers, mockCommissions } from './services/mockData';
 
 const USERS_KEY = 'ss_comm_users';
@@ -75,7 +75,28 @@ const App: React.FC = () => {
           return (parsed as string[]).map(name => ({ id: name, name }));
         }
         if (Array.isArray(parsed)) {
-          return parsed.map((c: any) => ({ id: c.id || c.name, name: c.name, note: c.note, lastContactDate: c.lastContactDate }));
+          return parsed.map((c: any) => ({
+            id: c.id || c.name,
+            name: c.name,
+            status: c.status || ClientStatus.LEAD,
+            responsibleDepartment: c.responsibleDepartment,
+            responsibleUserId: c.responsibleUserId,
+            responsibleUserName: c.responsibleUserName,
+            note: c.note,
+            lastContactDate: c.lastContactDate,
+            birthDate: c.birthDate,
+            gpsDueDate: c.gpsDueDate,
+            cpf: c.cpf,
+            govPassword: c.govPassword,
+            contractSignatureDate: c.contractSignatureDate,
+            phoneNumber: c.phoneNumber,
+            expectedBirthDate: c.expectedBirthDate,
+            hasKidsUnder5: c.hasKidsUnder5,
+            workStatus: c.workStatus,
+            hasLawyer: c.hasLawyer,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+          }));
         }
       } catch (err) {
         console.error('Failed to parse clients storage', err);
@@ -170,8 +191,42 @@ const App: React.FC = () => {
   const handleAddCommission = (newCommission: Commission) => {
     setCommissions(prev => applyCommissionRules([newCommission, ...prev]));
     setClients(prev => {
-      if (prev.some(c => c.name === newCommission.clientName)) return prev;
-      const newClient: Client = { id: newCommission.clientName, name: newCommission.clientName };
+      const existing = prev.find(c => c.name === newCommission.clientName);
+      if (existing) {
+        // Se já existe, atualiza para CONTRATADO, move para Controladoria e atualiza dados do lead
+        return prev.map(c => c.id === existing.id ? {
+          ...c,
+          status: ClientStatus.CONTRACTED,
+          responsibleDepartment: Department.CONTROLLERSHIP,
+          contractSignatureDate: c.contractSignatureDate || newCommission.contractDate,
+          // Atualiza dados do lead se fornecidos
+          phoneNumber: newCommission.leadPhoneNumber || c.phoneNumber,
+          expectedBirthDate: newCommission.leadExpectedBirthDate || c.expectedBirthDate,
+          hasKidsUnder5: newCommission.leadHasKidsUnder5 ?? c.hasKidsUnder5,
+          workStatus: newCommission.leadWorkStatus || c.workStatus,
+          hasLawyer: newCommission.leadHasLawyer ?? c.hasLawyer,
+          note: newCommission.observations || c.note,
+          updatedAt: new Date().toISOString(),
+        } : c);
+      }
+      // Novo cliente já entra como CONTRATADO (veio do comercial com contrato fechado)
+      const newClient: Client = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: newCommission.clientName,
+        status: ClientStatus.CONTRACTED,
+        responsibleDepartment: Department.CONTROLLERSHIP,
+        responsibleUserId: newCommission.lawyerId,
+        responsibleUserName: newCommission.lawyerName,
+        contractSignatureDate: newCommission.contractDate,
+        // Dados do Lead coletados pelo comercial
+        phoneNumber: newCommission.leadPhoneNumber,
+        expectedBirthDate: newCommission.leadExpectedBirthDate,
+        hasKidsUnder5: newCommission.leadHasKidsUnder5,
+        workStatus: newCommission.leadWorkStatus,
+        hasLawyer: newCommission.leadHasLawyer,
+        note: newCommission.observations,
+        createdAt: new Date().toISOString(),
+      };
       return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
     });
     if (currentUser) {
@@ -189,8 +244,16 @@ const App: React.FC = () => {
   const handleUpdateCommission = (updatedCommission: Commission) => {
     setCommissions(prev => applyCommissionRules(prev.map(c => c.id === updatedCommission.id ? updatedCommission : c)));
     setClients(prev => {
-      if (prev.some(c => c.name === updatedCommission.clientName)) return prev;
-      const newClient: Client = { id: updatedCommission.clientName, name: updatedCommission.clientName };
+      const existing = prev.find(c => c.name === updatedCommission.clientName);
+      if (existing) return prev;
+      const newClient: Client = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: updatedCommission.clientName,
+        status: ClientStatus.CONTRACTED,
+        responsibleDepartment: Department.CONTROLLERSHIP,
+        contractSignatureDate: updatedCommission.contractDate,
+        createdAt: new Date().toISOString(),
+      };
       return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
     });
     if (currentUser) {
@@ -210,10 +273,19 @@ const App: React.FC = () => {
     setClients(prev => {
       if (prev.some(c => c.name === name)) return prev;
       added = true;
-      return [...prev, { id: name, name }].sort((a, b) => a.name.localeCompare(b.name));
+      const newClient: Client = {
+        id: Math.random().toString(36).substr(2, 9),
+        name,
+        status: ClientStatus.LEAD,
+        responsibleDepartment: Department.COMMERCIAL,
+        responsibleUserId: currentUser?.id,
+        responsibleUserName: currentUser?.name,
+        createdAt: new Date().toISOString(),
+      };
+      return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
     });
     if (added && currentUser) {
-      recordLog({ action: 'client_add', targetType: 'client', targetId: name, actorId: currentUser.id, actorName: currentUser.name, details: `Inclusao de cliente ${name}` });
+      recordLog({ action: 'client_add', targetType: 'client', targetId: name, actorId: currentUser.id, actorName: currentUser.name, details: `Inclusao de lead ${name}` });
     }
   };
 

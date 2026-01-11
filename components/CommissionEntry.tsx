@@ -28,7 +28,13 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         clientName: '',
         contractDate: '',
         observations: '',
-        status: CommissionStatus.PENDING as CommissionStatus
+        status: CommissionStatus.PENDING as CommissionStatus,
+        // Dados do Lead
+        leadPhoneNumber: '',
+        leadExpectedBirthDate: '',
+        leadHasKidsUnder5: '' as '' | 'sim' | 'nao',
+        leadWorkStatus: '',
+        leadHasLawyer: '' as '' | 'sim' | 'nao',
     });
   
   const [successMessage, setSuccessMessage] = useState('');
@@ -103,7 +109,12 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         clientName: commission.clientName,
         contractDate: commission.contractDate,
         observations: commission.observations || '',
-        status: commission.status
+        status: commission.status,
+        leadPhoneNumber: commission.leadPhoneNumber || '',
+        leadExpectedBirthDate: commission.leadExpectedBirthDate || '',
+        leadHasKidsUnder5: commission.leadHasKidsUnder5 === undefined ? '' : commission.leadHasKidsUnder5 ? 'sim' : 'nao',
+        leadWorkStatus: commission.leadWorkStatus || '',
+        leadHasLawyer: commission.leadHasLawyer === undefined ? '' : commission.leadHasLawyer ? 'sim' : 'nao',
     });
     setEditingId(commission.id);
     setIsFormOpen(true);
@@ -114,7 +125,12 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         clientName: '',
         contractDate: '',
         observations: '',
-        status: CommissionStatus.PENDING
+        status: CommissionStatus.PENDING,
+        leadPhoneNumber: '',
+        leadExpectedBirthDate: '',
+        leadHasKidsUnder5: '',
+        leadWorkStatus: '',
+        leadHasLawyer: '',
     });
     setEditingId(null);
     setIsFormOpen(true);
@@ -142,6 +158,11 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                 observations: formData.observations,
                 status: nextStatus,
                 updatedAt: new Date().toISOString(),
+                leadPhoneNumber: formData.leadPhoneNumber || originalCommission.leadPhoneNumber,
+                leadExpectedBirthDate: formData.leadExpectedBirthDate || originalCommission.leadExpectedBirthDate,
+                leadHasKidsUnder5: formData.leadHasKidsUnder5 === '' ? originalCommission.leadHasKidsUnder5 : formData.leadHasKidsUnder5 === 'sim',
+                leadWorkStatus: formData.leadWorkStatus || originalCommission.leadWorkStatus,
+                leadHasLawyer: formData.leadHasLawyer === '' ? originalCommission.leadHasLawyer : formData.leadHasLawyer === 'sim',
                 // Keep existing financial fields untouched
             };
             onUpdateCommission(updatedCommission);
@@ -164,7 +185,12 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
             date: new Date().toISOString(),
             contractDate: formData.contractDate,
             observations: formData.observations,
-            noCommission: isManager
+            noCommission: isManager,
+            leadPhoneNumber: formData.leadPhoneNumber,
+            leadExpectedBirthDate: formData.leadExpectedBirthDate,
+            leadHasKidsUnder5: formData.leadHasKidsUnder5 === '' ? undefined : formData.leadHasKidsUnder5 === 'sim',
+            leadWorkStatus: formData.leadWorkStatus,
+            leadHasLawyer: formData.leadHasLawyer === '' ? undefined : formData.leadHasLawyer === 'sim',
         };
         onAddCommission(newCommission);
         onAddClient(formData.clientName);
@@ -186,7 +212,12 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
             clientName: '',
             contractDate: '',
             observations: '',
-            status: CommissionStatus.PENDING
+            status: CommissionStatus.PENDING,
+            leadPhoneNumber: '',
+            leadExpectedBirthDate: '',
+            leadHasKidsUnder5: '',
+            leadWorkStatus: '',
+            leadHasLawyer: '',
         });
         setEditingId(null);
     }, 1500);
@@ -490,6 +521,83 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                 )}
              </div>
           </div>
+
+          {/* Section: Dados do Lead - Apenas para Comercial */}
+          {user.department === Department.COMMERCIAL && (
+          <div className="space-y-4">
+             <h3 className="text-sm font-semibold text-gold-600 uppercase tracking-wider border-b border-gray-100 pb-2">Dados do Lead</h3>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Telefone */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Número de telefone</label>
+                    <input
+                        type="text"
+                        name="leadPhoneNumber"
+                        value={formData.leadPhoneNumber}
+                        onChange={handleChange}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-gold-500 focus:border-gold-500 text-gray-900"
+                        placeholder="(00) 00000-0000"
+                    />
+                </div>
+
+                {/* Data prevista nascimento */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data prevista para o nascimento</label>
+                    <input
+                        type="date"
+                        name="leadExpectedBirthDate"
+                        value={formData.leadExpectedBirthDate}
+                        onChange={handleChange}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-gold-500 focus:border-gold-500 text-gray-900"
+                    />
+                </div>
+
+                {/* Filhos menores de 5 anos */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Filhos menores de 5 anos?</label>
+                    <select
+                        name="leadHasKidsUnder5"
+                        value={formData.leadHasKidsUnder5}
+                        onChange={handleChange}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-gold-500 focus:border-gold-500 text-gray-900"
+                    >
+                        <option value="">Selecione</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                    </select>
+                </div>
+
+                {/* Situação Funcional */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Situação Funcional</label>
+                    <input
+                        type="text"
+                        name="leadWorkStatus"
+                        value={formData.leadWorkStatus}
+                        onChange={handleChange}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-gold-500 focus:border-gold-500 text-gray-900"
+                        placeholder="Ex: CLT, Autônomo, Desempregado"
+                    />
+                </div>
+
+                {/* Possui advogado */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Possui advogado?</label>
+                    <select
+                        name="leadHasLawyer"
+                        value={formData.leadHasLawyer}
+                        onChange={handleChange}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-gold-500 focus:border-gold-500 text-gray-900"
+                    >
+                        <option value="">Selecione</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                    </select>
+                </div>
+             </div>
+          </div>
+          )}
 
           {/* Section: Observações */}
           <div className="space-y-4">

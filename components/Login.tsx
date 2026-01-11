@@ -97,10 +97,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
         
         <div className="mt-6 text-center">
             <p className="text-xs text-gray-400">
-                Acesso para teste:<br/>
-                admin / 123<br/>
-                gestor / 123<br/>
-                colaborador / 123
+                Seabra & Sousa Advogados<br/>
+                Sistema de Gestão de Comissões
             </p>
         </div>
       </div>
