@@ -300,13 +300,23 @@ const App: React.FC = () => {
       if (useSupabase) {
         try {
           const created = await clientsApi.create(newClient);
-          setClients(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+          setClients(prev => {
+            // Evitar duplicação: verificar se já existe pelo nome
+            if (prev.some(c => c.name === created.name)) return prev;
+            return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+          });
         } catch (error) {
           console.error('Erro ao criar cliente:', error);
-          setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+          setClients(prev => {
+            if (prev.some(c => c.name === newClient.name)) return prev;
+            return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
+          });
         }
       } else {
-        setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+        setClients(prev => {
+          if (prev.some(c => c.name === newClient.name)) return prev;
+          return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
+        });
       }
     }
 
@@ -348,13 +358,22 @@ const App: React.FC = () => {
       if (useSupabase) {
         try {
           const created = await clientsApi.create(newClient);
-          setClients(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+          setClients(prev => {
+            if (prev.some(c => c.name === created.name)) return prev;
+            return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+          });
         } catch (error) {
           console.error('Erro ao criar cliente:', error);
-          setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+          setClients(prev => {
+            if (prev.some(c => c.name === newClient.name)) return prev;
+            return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
+          });
         }
       } else {
-        setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+        setClients(prev => {
+          if (prev.some(c => c.name === newClient.name)) return prev;
+          return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
+        });
       }
     }
 
@@ -386,13 +405,22 @@ const App: React.FC = () => {
     if (useSupabase) {
       try {
         const created = await clientsApi.create(newClient);
-        setClients(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+        setClients(prev => {
+          if (prev.some(c => c.name === created.name)) return prev;
+          return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+        });
       } catch (error) {
         console.error('Erro ao criar cliente:', error);
-        setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+        setClients(prev => {
+          if (prev.some(c => c.name === newClient.name)) return prev;
+          return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
+        });
       }
     } else {
-      setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+      setClients(prev => {
+        if (prev.some(c => c.name === newClient.name)) return prev;
+        return [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name));
+      });
     }
 
     if (currentUser) {
