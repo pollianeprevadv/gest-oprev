@@ -20,6 +20,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
     const [selectedDay, setSelectedDay] = useState(0); // 0 = todos os dias do mês
   const [searchTerm, setSearchTerm] = useState('');
     const [selectedDepartment, setSelectedDepartment] = useState<Department>(user.department);
+    const [filterDepartment, setFilterDepartment] = useState<Department | 'ALL'>('ALL'); // Filtro de departamento para visualização
 
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,7 +62,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         return commissions;
     })();
 
-  // 2. Aplicar filtros de Mês, Ano e Busca
+  // 2. Aplicar filtros de Mês, Ano, Busca e Departamento
   const filteredCommissions = visibleCommissions.filter(item => {
     const itemDate = new Date(item.contractDate);
     
@@ -76,7 +77,10 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         item.clientName.toLowerCase().includes(searchLower) ||
         item.lawyerName.toLowerCase().includes(searchLower);
 
-        return matchesMonth && matchesYear && matchesDay && matchesSearch;
+    // Verifica filtro de departamento (apenas para Gestores/Admins)
+    const matchesDepartment = filterDepartment === 'ALL' || item.department === filterDepartment;
+
+        return matchesMonth && matchesYear && matchesDay && matchesSearch && matchesDepartment;
   });
 
   const months = [
@@ -85,7 +89,8 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
   ];
 
     const showLawyerColumn = !isCollaborator;
-        const totalColumns = 4 + (showLawyerColumn ? 1 : 0) + ((isManagerOrAdmin || isCollaborator) ? 1 : 0);
+    const showDepartmentColumn = isManagerOrAdmin; // Mostrar coluna de departamento apenas para Gestor/Admin
+        const totalColumns = 4 + (showLawyerColumn ? 1 : 0) + (showDepartmentColumn ? 1 : 0) + ((isManagerOrAdmin || isCollaborator) ? 1 : 0);
 
     const editingCommission = editingId ? commissions.find(c => c.id === editingId) : undefined;
     const statusLockedForNonAdmin = editingCommission?.status === CommissionStatus.PAID && user.role !== UserRole.ADMIN;
@@ -352,6 +357,23 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                                 ))}
                             </select>
                         </div>
+
+                        {/* Filtro de Departamento - Apenas para Gestor/Admin */}
+                        {isManagerOrAdmin && (
+                            <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
+                                <select
+                                    value={filterDepartment}
+                                    onChange={(e) => setFilterDepartment(e.target.value as Department | 'ALL')}
+                                    className="bg-transparent border-none text-xs md:text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer"
+                                >
+                                    <option value="ALL">Todos Depto</option>
+                                    <option value={Department.COMMERCIAL}>Comercial</option>
+                                    <option value={Department.CONTROLLERSHIP}>Controladoria</option>
+                                    <option value={Department.OPERATIONS}>Operações</option>
+                                    <option value={Department.CUSTOMER_SUCCESS}>Customer Success</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* Busca */}
@@ -375,6 +397,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                         <th className="px-6 py-4 tracking-wider">Data</th>
                         {/* Show Lawyer Name Column if not collaborator */}
                         {showLawyerColumn && <th className="px-6 py-4 tracking-wider">Advogado</th>}
+                        {showDepartmentColumn && <th className="px-6 py-4 tracking-wider">Depto</th>}
                         <th className="px-6 py-4 tracking-wider">Cliente</th>
                         <th className="px-6 py-4 tracking-wider">Status</th>
                         <th className="px-6 py-4 tracking-wider">Observações</th>
@@ -391,6 +414,21 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                                 {showLawyerColumn && (
                                     <td className="px-6 py-4 text-navy-900">
                                         {item.lawyerName}
+                                    </td>
+                                )}
+                                {showDepartmentColumn && (
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                            ${item.department === Department.COMMERCIAL ? 'bg-blue-100 text-blue-800' : ''}
+                                            ${item.department === Department.CONTROLLERSHIP ? 'bg-purple-100 text-purple-800' : ''}
+                                            ${item.department === Department.OPERATIONS ? 'bg-orange-100 text-orange-800' : ''}
+                                            ${item.department === Department.CUSTOMER_SUCCESS ? 'bg-teal-100 text-teal-800' : ''}
+                                        `}>
+                                            {item.department === Department.COMMERCIAL ? 'Comercial' : 
+                                             item.department === Department.CONTROLLERSHIP ? 'Controladoria' :
+                                             item.department === Department.OPERATIONS ? 'Operações' :
+                                             item.department === Department.CUSTOMER_SUCCESS ? 'CS' : item.department}
+                                        </span>
                                     </td>
                                 )}
                                 <td className="px-6 py-4 font-medium">{item.clientName}</td>
@@ -493,13 +531,28 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                                                 <div className="text-xs text-gray-500">{item.lawyerName}</div>
                                             )}
                                         </div>
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                            ${item.status === CommissionStatus.PAID ? 'bg-green-100 text-green-800' : ''}
-                                            ${item.status === CommissionStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : ''}
-                                            ${item.status === CommissionStatus.CANCELED ? 'bg-red-100 text-red-800' : ''}
-                                        `}>
-                                            {item.status}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                                ${item.status === CommissionStatus.PAID ? 'bg-green-100 text-green-800' : ''}
+                                                ${item.status === CommissionStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : ''}
+                                                ${item.status === CommissionStatus.CANCELED ? 'bg-red-100 text-red-800' : ''}
+                                            `}>
+                                                {item.status}
+                                            </span>
+                                            {showDepartmentColumn && (
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium
+                                                    ${item.department === Department.COMMERCIAL ? 'bg-blue-100 text-blue-800' : ''}
+                                                    ${item.department === Department.CONTROLLERSHIP ? 'bg-purple-100 text-purple-800' : ''}
+                                                    ${item.department === Department.OPERATIONS ? 'bg-orange-100 text-orange-800' : ''}
+                                                    ${item.department === Department.CUSTOMER_SUCCESS ? 'bg-teal-100 text-teal-800' : ''}
+                                                `}>
+                                                    {item.department === Department.COMMERCIAL ? 'Comercial' : 
+                                                     item.department === Department.CONTROLLERSHIP ? 'Controladoria' :
+                                                     item.department === Department.OPERATIONS ? 'Operações' :
+                                                     item.department === Department.CUSTOMER_SUCCESS ? 'CS' : item.department}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="text-gray-500">{new Date(item.contractDate).toLocaleDateString('pt-BR')}</span>

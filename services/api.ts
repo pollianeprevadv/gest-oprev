@@ -52,6 +52,7 @@ const dbToCommission = (row: any): Commission => ({
   date: row.date,
   contractDate: row.contract_date,
   observations: row.observations,
+  observationHistory: row.observation_history ? JSON.parse(row.observation_history) : undefined,
   approvedById: row.approved_by_id,
   approvedAt: row.approved_at,
   updatedAt: row.updated_at,
@@ -259,6 +260,7 @@ export const commissionsApi = {
         date: commission.date,
         contract_date: commission.contractDate,
         observations: commission.observations,
+        observation_history: commission.observationHistory ? JSON.stringify(commission.observationHistory) : null,
         no_commission: commission.noCommission,
         lead_phone_number: commission.leadPhoneNumber,
         lead_expected_birth_date: commission.leadExpectedBirthDate,
@@ -278,6 +280,7 @@ export const commissionsApi = {
     if (commission.clientName !== undefined) updateData.client_name = commission.clientName;
     if (commission.contractDate !== undefined) updateData.contract_date = commission.contractDate;
     if (commission.observations !== undefined) updateData.observations = commission.observations;
+    if (commission.observationHistory !== undefined) updateData.observation_history = JSON.stringify(commission.observationHistory);
     if (commission.status !== undefined) updateData.status = commission.status;
     if (commission.commissionValue !== undefined) updateData.commission_value = commission.commissionValue;
     if (commission.approvedById !== undefined) updateData.approved_by_id = commission.approvedById;
