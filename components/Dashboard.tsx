@@ -513,26 +513,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-navy-900 text-white p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gold-500 rounded-full blur-[60px] opacity-20 transform translate-x-10 -translate-y-10"></div>
-                
-                {/* Only Show "Novo Lançamento" for Collaborators */}
-                {isCollaborator ? (
-                  <button 
-                    onClick={() => handleViewChange('entry')}
-                    className="w-full py-2.5 md:py-3 bg-gold-500 text-navy-900 font-semibold rounded hover:bg-gold-400 transition-colors text-sm md:text-base"
-                  >
-                    Novo Lançamento
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => handleViewChange('entry')}
-                    className="w-full py-2.5 md:py-3 border border-gold-500 text-gold-500 font-semibold rounded hover:bg-navy-800 transition-colors text-sm md:text-base"
-                  >
-                    Conferir Lançamentos
-                  </button>
-                )}
+          {/* Quadro de Avisos */}
+          <div className="lg:col-span-1">
+            <NoticeBoard notices={notices} currentUser={user} onAdd={onAddNotice} onDelete={onDeleteNotice} />
           </div>
         </div>
         {!isCollaborator && (
@@ -619,13 +602,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mt-6 md:mt-8">
-          <div className="lg:col-span-2">
-            <NoticeBoard notices={notices} currentUser={user} onAdd={onAddNotice} onDelete={onDeleteNotice} />
-          </div>
-          <div className="lg:col-span-1 hidden lg:block" />
-        </div>
       </>
     );
   };
