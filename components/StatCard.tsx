@@ -21,7 +21,7 @@ export const StatCard: React.FC<StatCardProps> = ({ title, value, trend, isPosit
         </div>
       </div>
       <div className="flex items-end justify-between">
-        <span className="text-lg md:text-2xl font-serif font-semibold text-navy-900 truncate">{value}</span>
+        <span className="text-lg md:text-2xl font-serif font-semibold text-navy-900">{value}</span>
         {trend && (
           <div className={`flex items-center text-xs md:text-sm font-medium flex-shrink-0 ml-2 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
             {isPositive ? <ArrowUpRight size={14} className="md:w-4 md:h-4" /> : <ArrowDownRight size={14} className="md:w-4 md:h-4" />}

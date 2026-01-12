@@ -271,7 +271,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const paidCommission = cycleCommissions
     .filter(c => c.status === CommissionStatus.PAID)
     .reduce((acc, curr) => acc + curr.commissionValue, 0);
-  const totalClosedContracts = cycleCommissions.filter(c => c.status !== CommissionStatus.CANCELED).length;
+  // Conta clientes únicos (por nome) - um cliente pode ter múltiplas comissões (comercial, controladoria, etc.)
+  const uniqueClients = new Set(
+    cycleCommissions
+      .filter(c => c.status !== CommissionStatus.CANCELED)
+      .map(c => c.clientName.toLowerCase().trim())
+  );
+  const totalClosedContracts = uniqueClients.size;
   const remainingToGoal = Math.max(0, monthlyContractGoal - totalClosedContracts);
 
   const isAdmin = user.role === UserRole.ADMIN;
@@ -507,38 +513,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Quick Actions / Summary */}
-          <div className="bg-navy-900 text-white p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-between relative overflow-hidden min-h-[200px] md:min-h-0">
+          {/* Quick Actions */}
+          <div className="bg-navy-900 text-white p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-center relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gold-500 rounded-full blur-[60px] opacity-20 transform translate-x-10 -translate-y-10"></div>
-                
-                <div>
-                  <h2 className="text-lg md:text-xl font-serif font-semibold mb-2 text-gold-500">Resumo Executivo</h2>
-                  <p className="text-navy-100 text-xs md:text-sm mb-4 md:mb-6">O escritório superou a meta mensal em 15%. A área Civil foi o destaque deste mês.</p>
-                  
-                  <div className="space-y-3 md:space-y-4">
-                      <div className="flex justify-between items-center border-b border-navy-700 pb-2">
-                          <span className="text-xs md:text-sm text-gray-300">Meta Mensal</span>
-                          <span className="font-semibold text-sm md:text-base">92%</span>
-                      </div>
-                      <div className="flex justify-between items-center border-b border-navy-700 pb-2">
-                          <span className="text-xs md:text-sm text-gray-300">Novos Clientes</span>
-                          <span className="font-semibold text-sm md:text-base">+8</span>
-                      </div>
-                  </div>
-                </div>
                 
                 {/* Only Show "Novo Lançamento" for Collaborators */}
                 {isCollaborator ? (
                   <button 
                     onClick={() => handleViewChange('entry')}
-                    className="mt-4 md:mt-8 w-full py-2.5 md:py-3 bg-gold-500 text-navy-900 font-semibold rounded hover:bg-gold-400 transition-colors text-sm md:text-base"
+                    className="w-full py-2.5 md:py-3 bg-gold-500 text-navy-900 font-semibold rounded hover:bg-gold-400 transition-colors text-sm md:text-base"
                   >
                     Novo Lançamento
                   </button>
                 ) : (
                   <button 
                     onClick={() => handleViewChange('entry')}
-                    className="mt-4 md:mt-8 w-full py-2.5 md:py-3 border border-gold-500 text-gold-500 font-semibold rounded hover:bg-navy-800 transition-colors text-sm md:text-base"
+                    className="w-full py-2.5 md:py-3 border border-gold-500 text-gold-500 font-semibold rounded hover:bg-navy-800 transition-colors text-sm md:text-base"
                   >
                     Conferir Lançamentos
                   </button>

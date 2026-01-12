@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Commission, CommissionStatus, UserRole, Department, ObservationEntry } from '../types';
-import { Save, FileText, Calendar, User as UserIcon, Plus, ArrowLeft, Search, CalendarDays, Edit2, Shield, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, FileText, Calendar, User as UserIcon, Plus, ArrowLeft, Search, CalendarDays, Edit2, Shield, MessageSquare, ChevronDown, ChevronUp, UserPlus, Users } from 'lucide-react';
 
 interface CommissionEntryProps {
     user: User;
@@ -43,12 +43,48 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
   
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Estado para cliente capturado da fila (controladoria)
+  const [capturedClient, setCapturedClient] = useState<Commission | null>(null);
+
     // PERMISSIONS CHECK
         const isCollaborator = user.role === UserRole.COLLABORATOR;
         const isManager = user.role === UserRole.MANAGER;
         const isManagerOrAdmin = isManager || user.role === UserRole.ADMIN;
         const isGeneral = user.department === Department.GENERAL;
         const canCreate = isCollaborator || isManager; // Gestor também pode lançar
+        const isControllership = user.department === Department.CONTROLLERSHIP;
+
+  // Fila de clientes: clientes com lançamento do Comercial mas sem lançamento da Controladoria
+  const clientsQueue = React.useMemo(() => {
+    if (!isControllership) return [];
+    
+    // Pegar todos os clientes únicos com lançamento do Comercial
+    const commercialClients = commissions.filter(
+      c => c.department === Department.COMMERCIAL && c.status !== CommissionStatus.CANCELED
+    );
+    
+    // Pegar todos os clientes que já têm lançamento da Controladoria
+    const controllershipClients = new Set(
+      commissions
+        .filter(c => c.department === Department.CONTROLLERSHIP && c.status !== CommissionStatus.CANCELED)
+        .map(c => c.clientName.toLowerCase().trim())
+    );
+    
+    // Filtrar: clientes do comercial que ainda não têm lançamento da controladoria
+    const queue: Commission[] = [];
+    const addedClients = new Set<string>();
+    
+    for (const comm of commercialClients) {
+      const clientKey = comm.clientName.toLowerCase().trim();
+      if (!controllershipClients.has(clientKey) && !addedClients.has(clientKey)) {
+        queue.push(comm);
+        addedClients.add(clientKey);
+      }
+    }
+    
+    // Ordenar por data mais recente primeiro
+    return queue.sort((a, b) => new Date(b.contractDate).getTime() - new Date(a.contractDate).getTime());
+  }, [commissions, isControllership]);
 
   // 1. Filtrar comissões
   // Se for Colaborador: vê apenas as suas
@@ -142,8 +178,28 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         leadHasLawyer: '',
     });
     setEditingId(null);
+    setCapturedClient(null);
     setIsFormOpen(true);
         setSelectedDepartment(user.department);
+  };
+
+  // Função para capturar cliente da fila (controladoria)
+  const handleCaptureClient = (commission: Commission) => {
+    setCapturedClient(commission);
+    setFormData({
+        clientName: commission.clientName,
+        contractDate: commission.contractDate,
+        newObservation: '',
+        status: CommissionStatus.PENDING,
+        leadPhoneNumber: commission.leadPhoneNumber || '',
+        leadExpectedBirthDate: commission.leadExpectedBirthDate || '',
+        leadHasKidsUnder5: commission.leadHasKidsUnder5 === undefined ? '' : commission.leadHasKidsUnder5 ? 'sim' : 'nao',
+        leadWorkStatus: commission.leadWorkStatus || '',
+        leadHasLawyer: commission.leadHasLawyer === undefined ? '' : commission.leadHasLawyer ? 'sim' : 'nao',
+    });
+    setEditingId(null);
+    setIsFormOpen(true);
+    setSelectedDepartment(Department.CONTROLLERSHIP);
   };
 
   // Função auxiliar para formatar observações do histórico
@@ -284,6 +340,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
             leadHasLawyer: '',
         });
         setEditingId(null);
+        setCapturedClient(null);
     }, 1500);
   };
 
@@ -314,6 +371,53 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                     </button>
                 )}
             </div>
+
+            {/* Fila de Clientes - Apenas para Controladoria */}
+            {isControllership && clientsQueue.length > 0 && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 md:p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Users size={20} className="text-purple-600" />
+                        <h3 className="text-base md:text-lg font-semibold text-purple-900">
+                            Fila de Clientes do Comercial
+                        </h3>
+                        <span className="ml-2 px-2 py-0.5 bg-purple-200 text-purple-800 rounded-full text-xs font-medium">
+                            {clientsQueue.length} pendente{clientsQueue.length > 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <p className="text-purple-700 text-xs md:text-sm mb-4">
+                        Clientes fechados pelo Comercial aguardando lançamento da Controladoria.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {clientsQueue.map((client) => (
+                            <div 
+                                key={client.id} 
+                                className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm hover:shadow-md transition-shadow"
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="font-medium text-navy-900 text-sm">{client.clientName}</p>
+                                        <p className="text-xs text-gray-500">
+                                            Fechado por: {client.lawyerName}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs text-gray-500">
+                                        {new Date(client.contractDate).toLocaleDateString('pt-BR')}
+                                    </span>
+                                    <button
+                                        onClick={() => handleCaptureClient(client)}
+                                        className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                                    >
+                                        <UserPlus size={14} />
+                                        Capturar
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* Barra de Filtros */}
