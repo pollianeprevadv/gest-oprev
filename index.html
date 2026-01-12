@@ -2,7 +2,10 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#1B2A41" />
     <title>Seabra & Sousa Advogados</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,6 +38,53 @@
     <style>
       body {
         background-color: #F9F8F4; /* Paper color */
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
+      
+      /* Melhorar touch targets */
+      button, a, input, select, textarea {
+        touch-action: manipulation;
+      }
+      
+      /* Esconder scrollbar em mobile mantendo funcionalidade */
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      
+      /* Animação do menu mobile */
+      .mobile-menu-enter {
+        animation: slideIn 0.3s ease-out;
+      }
+      
+      @keyframes slideIn {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+      
+      /* Safe area para iPhones com notch */
+      @supports (padding-top: env(safe-area-inset-top)) {
+        .safe-area-top {
+          padding-top: env(safe-area-inset-top);
+        }
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      }
+      
+      /* Melhor legibilidade em mobile */
+      @media (max-width: 640px) {
+        html {
+          font-size: 14px;
+        }
       }
     </style>
   <script type="importmap">

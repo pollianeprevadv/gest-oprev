@@ -28,6 +28,16 @@ export enum ClientStatus {
   CANCELLED = 'Cancelado',
 }
 
+// Estrutura para histórico de observações
+export interface ObservationEntry {
+  id: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  department: Department;
+  createdAt: string;
+}
+
 export interface Commission {
   id: string;
   lawyerName: string;
@@ -41,7 +51,8 @@ export interface Commission {
   status: CommissionStatus;
   date: string;         // Data do registro no sistema
   contractDate: string; // Data da assinatura do contrato
-  observations?: string;
+  observations?: string; // Mantido para compatibilidade (observação simples legada)
+  observationHistory?: ObservationEntry[]; // Novo: histórico de observações por departamento
   approvedById?: string;
   approvedAt?: string;
   updatedAt?: string;

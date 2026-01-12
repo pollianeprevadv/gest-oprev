@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { User, Commission, CommissionStatus, UserRole, Department } from '../types';
-import { Save, FileText, Calendar, User as UserIcon, Plus, ArrowLeft, Search, CalendarDays, Edit2, Shield } from 'lucide-react';
+import { User, Commission, CommissionStatus, UserRole, Department, ObservationEntry } from '../types';
+import { Save, FileText, Calendar, User as UserIcon, Plus, ArrowLeft, Search, CalendarDays, Edit2, Shield, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface CommissionEntryProps {
     user: User;
@@ -27,7 +27,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
     const [formData, setFormData] = useState({
         clientName: '',
         contractDate: '',
-        observations: '',
+        newObservation: '', // Nova observação a ser adicionada
         status: CommissionStatus.PENDING as CommissionStatus,
         // Dados do Lead
         leadPhoneNumber: '',
@@ -36,6 +36,9 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         leadWorkStatus: '',
         leadHasLawyer: '' as '' | 'sim' | 'nao',
     });
+
+  // Estado para controlar observações expandidas na listagem
+  const [expandedObservations, setExpandedObservations] = useState<string | null>(null);
   
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -48,13 +51,14 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
 
   // 1. Filtrar comissões
   // Se for Colaborador: vê apenas as suas
-  // Se for Gestor/Admin: vê TODAS
+  // Se for Gestor/Admin: vê TODAS (incluindo de outros departamentos)
     const visibleCommissions = (() => {
         if (isCollaborator) {
             return commissions.filter(c => (c.lawyerId ? c.lawyerId === user.id : c.lawyerName === user.name));
         }
-        if (isGeneral) return commissions;
-        return commissions.filter(c => c.department === user.department || (c.lawyerId ? c.lawyerId === user.id : c.lawyerName === user.name));
+        // Gestor e Admin veem todas as comissões de todos os departamentos
+        if (isManagerOrAdmin || isGeneral) return commissions;
+        return commissions;
     })();
 
   // 2. Aplicar filtros de Mês, Ano e Busca
@@ -108,7 +112,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
     setFormData({
         clientName: commission.clientName,
         contractDate: commission.contractDate,
-        observations: commission.observations || '',
+        newObservation: '', // Campo limpo para nova observação
         status: commission.status,
         leadPhoneNumber: commission.leadPhoneNumber || '',
         leadExpectedBirthDate: commission.leadExpectedBirthDate || '',
@@ -124,7 +128,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
     setFormData({
         clientName: '',
         contractDate: '',
-        observations: '',
+        newObservation: '',
         status: CommissionStatus.PENDING,
         leadPhoneNumber: '',
         leadExpectedBirthDate: '',
@@ -137,11 +141,41 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         setSelectedDepartment(user.department);
   };
 
+  // Função auxiliar para formatar observações do histórico
+  const formatObservationHistory = (commission: Commission): string => {
+    const history = commission.observationHistory || [];
+    if (history.length === 0 && commission.observations) {
+      return commission.observations; // Compatibilidade com dados antigos
+    }
+    if (history.length === 0) return '-';
+    return history.map(obs => `[${obs.department}] ${obs.text}`).join(' | ');
+  };
+
+  // Função para obter o número de observações
+  const getObservationCount = (commission: Commission): number => {
+    const history = commission.observationHistory || [];
+    if (history.length === 0 && commission.observations) return 1;
+    return history.length;
+  };
+
     const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     const originalCommission = editingId ? commissions.find(c => c.id === editingId) : undefined;
     const canEditExisting = originalCommission ? canEditCommission(originalCommission) : false;
+
+    // Criar nova entrada de observação se houver texto
+    const createObservationEntry = (): ObservationEntry | null => {
+      if (!formData.newObservation.trim()) return null;
+      return {
+        id: Math.random().toString(36).substr(2, 9),
+        text: formData.newObservation.trim(),
+        authorId: user.id,
+        authorName: user.name,
+        department: user.department,
+        createdAt: new Date().toISOString(),
+      };
+    };
 
     if (editingId && canEditExisting) {
         // UPDATE EXISTING
@@ -151,11 +185,33 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                 if (!isManagerOrAdmin) return originalCommission.status;
                 return formData.status;
             })();
+
+            // Preparar histórico de observações
+            let observationHistory = [...(originalCommission.observationHistory || [])];
+            
+            // Migrar observação legada para o histórico se necessário
+            if (originalCommission.observations && observationHistory.length === 0) {
+              observationHistory.push({
+                id: 'legacy',
+                text: originalCommission.observations,
+                authorId: originalCommission.lawyerId || '',
+                authorName: originalCommission.lawyerName,
+                department: originalCommission.department,
+                createdAt: originalCommission.date,
+              });
+            }
+
+            // Adicionar nova observação ao histórico
+            const newObsEntry = createObservationEntry();
+            if (newObsEntry) {
+              observationHistory.push(newObsEntry);
+            }
+
             const updatedCommission: Commission = {
                 ...originalCommission,
                 clientName: formData.clientName,
                 contractDate: formData.contractDate,
-                observations: formData.observations,
+                observationHistory: observationHistory,
                 status: nextStatus,
                 updatedAt: new Date().toISOString(),
                 leadPhoneNumber: formData.leadPhoneNumber || originalCommission.leadPhoneNumber,
@@ -171,6 +227,9 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         }
     } else if (canCreate) {
         // CREATE NEW
+        const newObsEntry = createObservationEntry();
+        const initialHistory: ObservationEntry[] = newObsEntry ? [newObsEntry] : [];
+
         const newCommission: Commission = {
             id: Math.random().toString(36).substr(2, 9),
             lawyerName: user.name,
@@ -184,7 +243,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
             status: CommissionStatus.PENDING, 
             date: new Date().toISOString(),
             contractDate: formData.contractDate,
-            observations: formData.observations,
+            observationHistory: initialHistory,
             noCommission: isManager,
             leadPhoneNumber: formData.leadPhoneNumber,
             leadExpectedBirthDate: formData.leadExpectedBirthDate,
@@ -211,7 +270,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
         setFormData({
             clientName: '',
             contractDate: '',
-            observations: '',
+            newObservation: '',
             status: CommissionStatus.PENDING,
             leadPhoneNumber: '',
             leadExpectedBirthDate: '',
@@ -226,16 +285,16 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
 
   if (!isFormOpen) {
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div className="space-y-4 md:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                 <div>
-                <h2 className="text-2xl font-serif font-semibold text-navy-900">
+                <h2 className="text-xl md:text-2xl font-serif font-semibold text-navy-900">
                     {canCreate ? 'Meus Lançamentos' : 'Conferência de Comissões'}
                 </h2>
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-500 text-xs md:text-sm">
                     {canCreate 
                         ? 'Gerencie suas comissões por competência.' 
-                        : 'Acompanhe e valide os lançamentos dos colaboradores.'}
+                        : 'Acompanhe e valide os lançamentos.'}
                 </p>
                 </div>
                 
@@ -243,7 +302,7 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                 {canCreate && (
                     <button 
                     onClick={handleNewClick}
-                    className="flex items-center justify-center space-x-2 bg-gold-500 text-navy-900 px-4 py-2 rounded-lg hover:bg-gold-400 transition-colors shadow-md font-medium"
+                    className="flex items-center justify-center space-x-2 bg-gold-500 text-navy-900 px-4 py-2.5 rounded-lg hover:bg-gold-400 transition-colors shadow-md font-medium text-sm w-full sm:w-auto"
                     >
                     <Plus size={18} />
                     <span>Novo Lançamento</span>
@@ -253,28 +312,28 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* Barra de Filtros */}
-                <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="p-3 md:p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col gap-3">
                     
                     {/* Seletores de Data */}
-                    <div className="flex items-center space-x-2 w-full md:w-auto">
-                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-                            <CalendarDays size={18} className="text-navy-900 mr-2" />
+                    <div className="flex flex-wrap items-center gap-2 w-full">
+                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
+                            <CalendarDays size={16} className="text-navy-900 mr-1 md:mr-2 hidden sm:block" />
                             <select 
                                 value={selectedMonth} 
                                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                                className="bg-transparent border-none text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer pr-8"
+                                className="bg-transparent border-none text-xs md:text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer pr-6 md:pr-8"
                             >
                                 {months.map((m, index) => (
-                                    <option key={index} value={index}>{m}</option>
+                                    <option key={index} value={index}>{m.substring(0, 3)}</option>
                                 ))}
                             </select>
                         </div>
 
-                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
                             <select 
                                 value={selectedYear} 
                                 onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                className="bg-transparent border-none text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer"
+                                className="bg-transparent border-none text-xs md:text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer"
                             >
                                 {years.map((y) => (
                                     <option key={y} value={y}>{y}</option>
@@ -282,33 +341,34 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                             </select>
                         </div>
 
-                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
                             <select
                                 value={selectedDay}
                                 onChange={(e) => setSelectedDay(Number(e.target.value))}
-                                className="bg-transparent border-none text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer"
+                                className="bg-transparent border-none text-xs md:text-sm text-gray-700 font-medium focus:ring-0 cursor-pointer"
                             >
                                 {days.map(day => (
-                                    <option key={day} value={day}>{day === 0 ? 'Todos os dias' : day}</option>
+                                    <option key={day} value={day}>{day === 0 ? 'Todos' : `Dia ${day}`}</option>
                                 ))}
                             </select>
                         </div>
                     </div>
 
                     {/* Busca */}
-                    <div className="relative w-full md:w-64">
+                    <div className="relative w-full">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                         <input 
                             type="text" 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder={canCreate ? "Buscar cliente..." : "Buscar cliente ou advogado..."}
+                            placeholder={canCreate ? "Buscar..." : "Buscar cliente ou advogado..."}
                             className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 w-full bg-white shadow-sm"
                         />
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Tabela - Versão Desktop */}
+                <div className="overflow-x-auto hidden md:block">
                     <table className="w-full text-left text-sm text-gray-600">
                     <thead className="bg-gray-50 text-xs uppercase font-medium text-gray-500">
                         <tr>
@@ -343,8 +403,40 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                                     {item.status}
                                 </span>
                                 </td>
-                                <td className="px-6 py-4 truncate max-w-xs text-gray-400">
-                                    {item.observations || '-'}
+                                <td className="px-6 py-4 max-w-xs">
+                                    {getObservationCount(item) > 0 ? (
+                                      <button
+                                        onClick={() => setExpandedObservations(expandedObservations === item.id ? null : item.id)}
+                                        className="flex items-center gap-1 text-navy-900 hover:text-gold-600 text-xs"
+                                      >
+                                        <MessageSquare size={14} />
+                                        <span>{getObservationCount(item)} obs.</span>
+                                        {expandedObservations === item.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                      </button>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                    {expandedObservations === item.id && (
+                                      <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs space-y-2 max-h-40 overflow-y-auto">
+                                        {(item.observationHistory && item.observationHistory.length > 0) ? (
+                                          item.observationHistory.map((obs, idx) => (
+                                            <div key={obs.id || idx} className="border-l-2 border-gold-500 pl-2">
+                                              <div className="flex items-center gap-2 text-gray-500">
+                                                <span className="font-medium text-navy-900">{obs.authorName}</span>
+                                                <span className="px-1.5 py-0.5 bg-gray-200 rounded text-[10px]">{obs.department}</span>
+                                                <span>{new Date(obs.createdAt).toLocaleDateString('pt-BR')}</span>
+                                              </div>
+                                              <p className="text-gray-700 mt-0.5">{obs.text}</p>
+                                            </div>
+                                          ))
+                                        ) : item.observations ? (
+                                          <div className="border-l-2 border-gray-300 pl-2">
+                                            <div className="text-gray-500 text-[10px]">(Observação legada)</div>
+                                            <p className="text-gray-700">{item.observations}</p>
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    )}
                                 </td>
                                 {(isManagerOrAdmin || isCollaborator) && (
                                     <td className="px-6 py-4 text-right space-x-2">
@@ -387,10 +479,102 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
                     </tbody>
                     </table>
                 </div>
+
+                {/* Lista de Cards - Versão Mobile */}
+                <div className="md:hidden">
+                    {filteredCommissions.length > 0 ? (
+                        <div className="divide-y divide-gray-100">
+                            {filteredCommissions.map((item) => (
+                                <div key={item.id} className="p-4 space-y-2">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="font-medium text-navy-900">{item.clientName}</div>
+                                            {showLawyerColumn && (
+                                                <div className="text-xs text-gray-500">{item.lawyerName}</div>
+                                            )}
+                                        </div>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            ${item.status === CommissionStatus.PAID ? 'bg-green-100 text-green-800' : ''}
+                                            ${item.status === CommissionStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : ''}
+                                            ${item.status === CommissionStatus.CANCELED ? 'bg-red-100 text-red-800' : ''}
+                                        `}>
+                                            {item.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">{new Date(item.contractDate).toLocaleDateString('pt-BR')}</span>
+                                        {(isManagerOrAdmin || isCollaborator) && (
+                                            <div className="flex items-center space-x-3">
+                                                {canEditCommission(item) && (
+                                                    <button 
+                                                        onClick={() => handleEditClick(item)}
+                                                        className="text-navy-900 hover:text-gold-600 transition-colors p-1"
+                                                    >
+                                                        <Edit2 size={18} />
+                                                    </button>
+                                                )}
+                                                {isManagerOrAdmin && (
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Deseja remover este lançamento?')) {
+                                                                onDeleteCommission(item.id);
+                                                            }
+                                                        }}
+                                                        className="text-red-600 hover:text-red-700 transition-colors p-1"
+                                                    >
+                                                        <Shield size={18} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {getObservationCount(item) > 0 && (
+                                      <div>
+                                        <button
+                                          onClick={() => setExpandedObservations(expandedObservations === item.id ? null : item.id)}
+                                          className="flex items-center gap-1 text-navy-900 hover:text-gold-600 text-xs"
+                                        >
+                                          <MessageSquare size={14} />
+                                          <span>{getObservationCount(item)} observações</span>
+                                          {expandedObservations === item.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                        </button>
+                                        {expandedObservations === item.id && (
+                                          <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs space-y-2 max-h-40 overflow-y-auto">
+                                            {(item.observationHistory && item.observationHistory.length > 0) ? (
+                                              item.observationHistory.map((obs, idx) => (
+                                                <div key={obs.id || idx} className="border-l-2 border-gold-500 pl-2">
+                                                  <div className="flex flex-wrap items-center gap-1 text-gray-500">
+                                                    <span className="font-medium text-navy-900">{obs.authorName}</span>
+                                                    <span className="px-1 py-0.5 bg-gray-200 rounded text-[10px]">{obs.department}</span>
+                                                    <span className="text-[10px]">{new Date(obs.createdAt).toLocaleDateString('pt-BR')}</span>
+                                                  </div>
+                                                  <p className="text-gray-700 mt-0.5">{obs.text}</p>
+                                                </div>
+                                              ))
+                                            ) : item.observations ? (
+                                              <div className="border-l-2 border-gray-300 pl-2">
+                                                <div className="text-gray-500 text-[10px]">(Observação legada)</div>
+                                                <p className="text-gray-700">{item.observations}</p>
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center text-gray-400">
+                            <FileText className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm">Nenhum lançamento em {months[selectedMonth]}/{selectedYear}</p>
+                        </div>
+                    )}
+                </div>
                 
-                <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 text-xs text-gray-500 flex justify-between">
-                    <span>Mostrando {filteredCommissions.length} registros</span>
-                    <span>Competência: {selectedDay === 0 ? 'Todos os dias' : `Dia ${selectedDay}`} · {months[selectedMonth]}/{selectedYear}</span>
+                <div className="bg-gray-50 px-4 md:px-6 py-3 border-t border-gray-100 text-xs text-gray-500 flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span>{filteredCommissions.length} registros</span>
+                    <span>{selectedDay === 0 ? 'Todos os dias' : `Dia ${selectedDay}`} · {months[selectedMonth]}/{selectedYear}</span>
                 </div>
             </div>
         </div>
@@ -398,23 +582,23 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6">
         <div>
             <button 
                 onClick={() => setIsFormOpen(false)}
                 className="flex items-center text-gray-500 hover:text-navy-900 transition-colors mb-2 text-sm"
             >
                 <ArrowLeft size={16} className="mr-1" />
-                Voltar para lista
+                Voltar
             </button>
-            <h2 className="text-2xl font-serif font-semibold text-navy-900">
+            <h2 className="text-xl md:text-2xl font-serif font-semibold text-navy-900">
                 {editingId ? 'Editar Lançamento' : 'Novo Lançamento'}
             </h2>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-500 text-xs md:text-sm">
                 {editingId 
-                    ? 'Altere as informações abaixo conforme necessário.' 
-                    : 'Registre os detalhes do novo contrato para processamento.'}
+                    ? 'Altere as informações conforme necessário.' 
+                    : 'Registre os detalhes do novo contrato.'}
             </p>
         </div>
       </div>
@@ -426,11 +610,11 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
       )}
 
       <div className="bg-white rounded-xl shadow-lg border-t-4 border-gold-500 overflow-hidden">
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 md:space-y-8">
           
              {/* Section: Dados do Contrato */}
           <div className="space-y-4">
-             <h3 className="text-sm font-semibold text-gold-600 uppercase tracking-wider border-b border-gray-100 pb-2">Informações do Contrato</h3>
+             <h3 className="text-xs md:text-sm font-semibold text-gold-600 uppercase tracking-wider border-b border-gray-100 pb-2">Informações do Contrato</h3>
              
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -603,35 +787,79 @@ export const CommissionEntry: React.FC<CommissionEntryProps> = ({ user, commissi
           <div className="space-y-4">
              <h3 className="text-sm font-semibold text-gold-600 uppercase tracking-wider border-b border-gray-100 pb-2">Observações</h3>
              
+             {/* Histórico de observações (somente ao editar) */}
+             {editingId && (() => {
+               const editingCommission = commissions.find(c => c.id === editingId);
+               const history = editingCommission?.observationHistory || [];
+               const hasLegacy = !history.length && editingCommission?.observations;
+               
+               if (history.length === 0 && !hasLegacy) return null;
+               
+               return (
+                 <div className="bg-gray-50 rounded-lg p-3 md:p-4 space-y-3 max-h-48 overflow-y-auto">
+                   <div className="text-xs font-medium text-gray-600 uppercase">Histórico de Observações</div>
+                   {history.length > 0 ? (
+                     history.map((obs, idx) => (
+                       <div key={obs.id || idx} className="border-l-3 border-gold-500 pl-3 py-1 bg-white rounded-r-lg shadow-sm">
+                         <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                           <span className="font-semibold text-navy-900">{obs.authorName}</span>
+                           <span className="px-1.5 py-0.5 bg-gold-100 text-gold-800 rounded text-[10px] font-medium">{obs.department}</span>
+                           <span>{new Date(obs.createdAt).toLocaleString('pt-BR')}</span>
+                         </div>
+                         <p className="text-sm text-gray-700 mt-1">{obs.text}</p>
+                       </div>
+                     ))
+                   ) : hasLegacy ? (
+                     <div className="border-l-3 border-gray-300 pl-3 py-1 bg-white rounded-r-lg shadow-sm">
+                       <div className="text-xs text-gray-500">(Observação anterior)</div>
+                       <p className="text-sm text-gray-700 mt-1">{editingCommission?.observations}</p>
+                     </div>
+                   ) : null}
+                 </div>
+               );
+             })()}
+
+             {/* Campo para nova observação */}
              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {editingId ? 'Adicionar Nova Observação' : 'Observação'}
+                  <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+                </label>
                 <div className="relative">
-                    <FileText className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <MessageSquare className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                     <textarea
-                        name="observations"
-                        rows={4}
-                        value={formData.observations}
+                        name="newObservation"
+                        rows={3}
+                        value={formData.newObservation}
                         onChange={handleChange}
                         className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-gold-500 focus:border-gold-500 text-gray-900"
-                        placeholder="Detalhes adicionais sobre o contrato..."
+                        placeholder={editingId 
+                          ? `Adicionar observação como ${user.department}...` 
+                          : "Detalhes adicionais sobre o contrato..."}
                     />
                 </div>
+                {editingId && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Sua observação será adicionada ao histórico como <strong>{user.department}</strong>. As observações anteriores serão mantidas.
+                  </p>
+                )}
              </div>
           </div>
 
-          <div className="pt-4 flex justify-end space-x-3">
+          <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
              <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all"
+                className="w-full sm:w-auto px-4 md:px-6 py-2.5 md:py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all text-sm md:text-base"
             >
                 Cancelar
             </button>
             <button
                 type="submit"
-                className="px-6 py-3 bg-navy-900 text-white font-medium rounded-lg hover:bg-navy-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold-500 transition-all shadow-lg flex items-center space-x-2"
+                className="w-full sm:w-auto px-4 md:px-6 py-2.5 md:py-3 bg-navy-900 text-white font-medium rounded-lg hover:bg-navy-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold-500 transition-all shadow-lg flex items-center justify-center space-x-2 text-sm md:text-base"
             >
                 <Save size={18} />
-                <span>{editingId ? 'Salvar Alterações' : 'Salvar Lançamento'}</span>
+                <span>{editingId ? 'Salvar' : 'Salvar Lançamento'}</span>
             </button>
           </div>
 

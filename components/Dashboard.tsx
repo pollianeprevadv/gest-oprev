@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, 
   DollarSign, 
@@ -12,7 +12,10 @@ import {
   Settings,
   ShieldCheck,
   PlusCircle,
-  FileText
+  FileText,
+  Menu,
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { 
   LineChart,
@@ -25,7 +28,7 @@ import {
   Legend
 } from 'recharts';
 import { StatCard } from './StatCard';
-import { Commission, CommissionStatus, User, UserRole, Department, Client, AuditLog, Notice } from '../types';
+import { Commission, CommissionStatus, User, UserRole, Department, Client, AuditLog, Notice, ObservationEntry } from '../types';
 import { UserManagement } from './UserManagement';
 import { CommissionEntry } from './CommissionEntry';
 import { ClientList } from './ClientList';
@@ -87,10 +90,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
   });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar se é mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Fechar menu mobile ao mudar de view
+  const handleViewChange = (view: ViewState) => {
+    setCurrentView(view);
+    setIsMobileMenuOpen(false);
+  };
 
   const filterByScope = (list: Commission[]) => {
     const byDepartment = (commission: Commission) => {
-      if (user.department === Department.GENERAL || user.role === UserRole.ADMIN) return true;
+      // Admin e Gestor veem TODAS as comissões de todos os departamentos
+      if (user.role === UserRole.ADMIN || user.role === UserRole.MANAGER) return true;
+      if (user.department === Department.GENERAL) return true;
       return commission.department === user.department;
     };
 
@@ -103,6 +129,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const scopedCommissions = filterByScope(commissions);
+
+  // Helper para obter contagem de observações
+  const getObservationCount = (commission: Commission): number => {
+    let count = 0;
+    if (commission.observationHistory && commission.observationHistory.length > 0) {
+      count += commission.observationHistory.length;
+    }
+    if (commission.observations) {
+      count += 1; // Observação legada
+    }
+    return count;
+  };
+
+  // Helper para formatar tooltip de observações
+  const getObservationsTooltip = (commission: Commission): string => {
+    const lines: string[] = [];
+    
+    // Adiciona observações do histórico
+    if (commission.observationHistory && commission.observationHistory.length > 0) {
+      commission.observationHistory.forEach((obs) => {
+        lines.push(`[${obs.department}] ${obs.authorName} (${new Date(obs.createdAt).toLocaleDateString('pt-BR')}): ${obs.text}`);
+      });
+    }
+    
+    // Adiciona observação legada se existir e não estiver no histórico
+    if (commission.observations && (!commission.observationHistory || commission.observationHistory.length === 0)) {
+      lines.push(`Observação: ${commission.observations}`);
+    }
+    
+    return lines.join('\n\n');
+  };
 
   const getCurrentCycleWindow = () => {
     const today = new Date();
@@ -332,7 +389,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6 mb-6 md:mb-8">
           <StatCard 
             title="Comissão total à pagar" 
             value={formatCurrency(totalCommission)}
@@ -365,30 +422,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mb-6 md:mb-8">
           {/* Chart Section */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 lg:col-span-2">
-            <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+          <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-100 lg:col-span-2">
+            <div className="flex flex-col gap-4 mb-4 md:mb-6">
               <div>
-                <h2 className="text-lg font-serif font-semibold text-navy-900">Comissões no Período</h2>
-                <p className="text-sm text-gray-500">Visão mensal exibindo todos os dias do período selecionado.</p>
+                <h2 className="text-base md:text-lg font-serif font-semibold text-navy-900">Comissões no Período</h2>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Visão mensal exibindo todos os dias do período selecionado.</p>
               </div>
-              <div className="flex items-center gap-4 text-sm text-gray-700">
-                <div className="px-3 py-2 bg-gray-100 rounded-md">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-gray-700">
+                <div className="px-2 md:px-3 py-1.5 md:py-2 bg-gray-100 rounded-md">
                   <span className="font-semibold text-navy-900 mr-1">{totalContractsWindow}</span>
-                  contratos no intervalo
+                  <span className="hidden sm:inline">contratos</span>
+                  <span className="sm:hidden">cont.</span>
                 </div>
-                <div className="px-3 py-2 bg-gray-100 rounded-md">
+                <div className="px-2 md:px-3 py-1.5 md:py-2 bg-gray-100 rounded-md">
                   <span className="font-semibold text-navy-900 mr-1">{chartParticipants.length}</span>
-                  participantes
+                  <span className="hidden sm:inline">participantes</span>
+                  <span className="sm:hidden">part.</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2 text-xs md:text-sm ml-auto">
                   <select
                     value={chartMonth.month}
                     onChange={(e) => setChartMonth({ ...chartMonth, month: Number(e.target.value) })}
-                    className="border-gray-300 rounded-md text-gray-600 focus:ring-gold-500 focus:border-gold-500 p-2 bg-gray-50"
+                    className="border-gray-300 rounded-md text-gray-600 focus:ring-gold-500 focus:border-gold-500 p-1.5 md:p-2 bg-gray-50 text-xs md:text-sm"
                   >
                     {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'].map((m, idx) => (
                       <option key={m} value={idx}>{m}</option>
@@ -397,7 +454,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <select
                     value={chartMonth.year}
                     onChange={(e) => setChartMonth({ ...chartMonth, year: Number(e.target.value) })}
-                    className="border-gray-300 rounded-md text-gray-600 focus:ring-gold-500 focus:border-gold-500 p-2 bg-gray-50"
+                    className="border-gray-300 rounded-md text-gray-600 focus:ring-gold-500 focus:border-gold-500 p-1.5 md:p-2 bg-gray-50 text-xs md:text-sm"
                   >
                     {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
                       <option key={y} value={y}>{y}</option>
@@ -406,7 +463,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
             </div>
-            <div className="h-80 w-full">
+            <div className="h-60 md:h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <defs>
@@ -451,21 +508,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Quick Actions / Summary */}
-          <div className="bg-navy-900 text-white p-6 rounded-lg shadow-lg flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gold-500 rounded-full blur-[60px] opacity-20 transform translate-x-10 -translate-y-10"></div>
+          <div className="bg-navy-900 text-white p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-between relative overflow-hidden min-h-[200px] md:min-h-0">
+                <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gold-500 rounded-full blur-[60px] opacity-20 transform translate-x-10 -translate-y-10"></div>
                 
                 <div>
-                  <h2 className="text-xl font-serif font-semibold mb-2 text-gold-500">Resumo Executivo</h2>
-                  <p className="text-navy-100 text-sm mb-6">O escritório superou a meta mensal em 15%. A área Civil foi o destaque deste mês.</p>
+                  <h2 className="text-lg md:text-xl font-serif font-semibold mb-2 text-gold-500">Resumo Executivo</h2>
+                  <p className="text-navy-100 text-xs md:text-sm mb-4 md:mb-6">O escritório superou a meta mensal em 15%. A área Civil foi o destaque deste mês.</p>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                       <div className="flex justify-between items-center border-b border-navy-700 pb-2">
-                          <span className="text-sm text-gray-300">Meta Mensal</span>
-                          <span className="font-semibold">92%</span>
+                          <span className="text-xs md:text-sm text-gray-300">Meta Mensal</span>
+                          <span className="font-semibold text-sm md:text-base">92%</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-navy-700 pb-2">
-                          <span className="text-sm text-gray-300">Novos Clientes</span>
-                          <span className="font-semibold">+8</span>
+                          <span className="text-xs md:text-sm text-gray-300">Novos Clientes</span>
+                          <span className="font-semibold text-sm md:text-base">+8</span>
                       </div>
                   </div>
                 </div>
@@ -473,15 +530,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {/* Only Show "Novo Lançamento" for Collaborators */}
                 {isCollaborator ? (
                   <button 
-                    onClick={() => setCurrentView('entry')}
-                    className="mt-8 w-full py-3 bg-gold-500 text-navy-900 font-semibold rounded hover:bg-gold-400 transition-colors"
+                    onClick={() => handleViewChange('entry')}
+                    className="mt-4 md:mt-8 w-full py-2.5 md:py-3 bg-gold-500 text-navy-900 font-semibold rounded hover:bg-gold-400 transition-colors text-sm md:text-base"
                   >
                     Novo Lançamento
                   </button>
                 ) : (
                   <button 
-                    onClick={() => setCurrentView('entry')}
-                    className="mt-8 w-full py-3 border border-gold-500 text-gold-500 font-semibold rounded hover:bg-navy-800 transition-colors"
+                    onClick={() => handleViewChange('entry')}
+                    className="mt-4 md:mt-8 w-full py-2.5 md:py-3 border border-gold-500 text-gold-500 font-semibold rounded hover:bg-navy-800 transition-colors text-sm md:text-base"
                   >
                     Conferir Lançamentos
                   </button>
@@ -490,26 +547,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
         {!isCollaborator && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <h2 className="text-lg font-serif font-semibold text-navy-900">Comissões Recentes</h2>
+            <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col gap-3 md:gap-4">
+              <h2 className="text-base md:text-lg font-serif font-semibold text-navy-900">Comissões Recentes</h2>
               
-              <div className="flex space-x-2">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                     <input 
                         type="text" 
-                        placeholder="Buscar advogado ou cliente..." 
-                        className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-gold-500 w-64"
+                        placeholder="Buscar..." 
+                        className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-gold-500 w-full"
                     />
                 </div>
-                <button className="flex items-center space-x-1 px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50">
-                    <Filter size={16} />
-                    <span>Filtrar</span>
-                </button>
-                <button className="flex items-center space-x-1 px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50">
-                    <Download size={16} />
-                    <span>Exportar</span>
-                </button>
+                <div className="flex space-x-2">
+                  <button className="flex items-center justify-center space-x-1 px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50 flex-1 sm:flex-none">
+                      <Filter size={16} />
+                      <span className="hidden sm:inline">Filtrar</span>
+                  </button>
+                  <button className="flex items-center justify-center space-x-1 px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50 flex-1 sm:flex-none">
+                      <Download size={16} />
+                      <span className="hidden sm:inline">Exportar</span>
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -553,7 +612,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </td>
                       <td className="px-6 py-4 text-gray-400">
                           {item.contractDate ? new Date(item.contractDate).toLocaleDateString('pt-BR') : '-'}
-                          {item.observations && <span title={item.observations} className="ml-2 text-navy-900 cursor-help">*</span>}
+                          {getObservationCount(item) > 0 && (
+                            <span 
+                              title={getObservationsTooltip(item)} 
+                              className="ml-2 inline-flex items-center text-navy-900 cursor-help"
+                            >
+                              <MessageSquare size={14} className="mr-1" />
+                              <span className="text-xs font-medium">{getObservationCount(item)}</span>
+                            </span>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -563,22 +630,119 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mt-6 md:mt-8">
           <div className="lg:col-span-2">
             <NoticeBoard notices={notices} currentUser={user} onAdd={onAddNotice} onDelete={onDeleteNotice} />
           </div>
-          <div className="lg:col-span-1" />
+          <div className="lg:col-span-1 hidden lg:block" />
         </div>
       </>
     );
   };
 
+  // Renderizar menu de navegação (reutilizado em sidebar e menu mobile)
+  const renderNavItems = () => (
+    <>
+      <button 
+        onClick={() => handleViewChange('dashboard')}
+        className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'dashboard' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
+      >
+        <PieChart size={20} />
+        <span className="font-medium">Dashboard</span>
+      </button>
+      
+      <button 
+        onClick={() => handleViewChange('entry')}
+        className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'entry' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
+      >
+        {isCollaborator ? <PlusCircle size={20} /> : <FileText size={20} />}
+        <span className="font-medium">{isCollaborator ? 'Meus Lançamentos' : 'Conferência'}</span>
+      </button>
+
+      {isAdmin && (
+        <button 
+          onClick={() => handleViewChange('audit')}
+          className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'audit' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
+        >
+          <ShieldCheck size={20} />
+          <span className="font-medium">Auditoria</span>
+        </button>
+      )}
+
+      {canManageUsers && (
+         <button 
+            onClick={() => handleViewChange('users')}
+            className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'users' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
+         >
+            <ShieldCheck size={20} />
+            <span className="font-medium">Usuários</span>
+         </button>
+      )}
+
+       <button 
+        onClick={() => handleViewChange('clients')}
+        className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'clients' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
+       >
+        <Users size={20} />
+        <span className="font-medium">Clientes</span>
+       </button>
+    </>
+  );
+
   return (
     <div className="flex h-screen bg-paper overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 bg-navy-900 text-white flex flex-col hidden md:flex shadow-xl z-20">
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 w-72 bg-navy-900 text-white flex flex-col z-50 transform transition-transform duration-300 ease-in-out md:hidden safe-area-top ${
+        isMobileMenuOpen ? 'translate-x-0 mobile-menu-enter' : '-translate-x-full'
+      }`}>
+        <div className="p-6 border-b border-navy-800 flex justify-between items-center">
+          <div className="text-center">
+            <div className="font-serif text-2xl font-bold tracking-tighter text-gold-500 mb-1">S&S</div>
+            <div className="text-[10px] tracking-widest uppercase text-gray-400">Advogados</div>
+          </div>
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="p-2 text-gray-400 hover:text-white rounded-lg"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        
+        <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
+          {renderNavItems()}
+        </nav>
+
+        <div className="p-4 border-t border-navy-800 safe-area-bottom">
+          <div className="flex items-center space-x-3 px-4 py-2 mb-3 text-gray-300">
+            <div className="h-8 w-8 rounded-full bg-navy-800 text-gold-500 flex items-center justify-center font-serif text-sm border border-gold-500">
+              {user.avatarInitials}
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium">{user.name}</div>
+              <div className="text-xs text-gray-500">{user.role}</div>
+            </div>
+          </div>
+          <button 
+            onClick={onLogout}
+            className="flex items-center space-x-3 text-gray-400 hover:text-white w-full px-4 py-2 transition-colors"
+          >
+            <LogOut size={20} />
+            <span>Sair</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Desktop Sidebar */}
+      <aside className="w-64 bg-navy-900 text-white flex-col hidden md:flex shadow-xl z-20">
         <div className="p-8 border-b border-navy-800 flex justify-center">
-            {/* Small version of logo for sidebar */}
             <div className="text-center">
                 <div className="font-serif text-2xl font-bold tracking-tighter text-gold-500 mb-1">S&S</div>
                 <div className="text-[10px] tracking-widest uppercase text-gray-400">Advogados</div>
@@ -586,50 +750,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
         
         <nav className="flex-1 py-6 px-4 space-y-2">
-          <button 
-            onClick={() => setCurrentView('dashboard')}
-            className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'dashboard' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
-          >
-            <PieChart size={20} />
-            <span className="font-medium">Dashboard</span>
-          </button>
-          
-          <button 
-            onClick={() => setCurrentView('entry')}
-            className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'entry' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
-          >
-            {isCollaborator ? <PlusCircle size={20} /> : <FileText size={20} />}
-            <span className="font-medium">{isCollaborator ? 'Meus Lançamentos' : 'Conferência'}</span>
-          </button>
-
-          {isAdmin && (
-            <button 
-              onClick={() => setCurrentView('audit')}
-              className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'audit' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
-            >
-              <ShieldCheck size={20} />
-              <span className="font-medium">Auditoria</span>
-            </button>
-          )}
-
-          {/* Admin Only Menu */}
-          {canManageUsers && (
-             <button 
-                onClick={() => setCurrentView('users')}
-                className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'users' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
-             >
-                <ShieldCheck size={20} />
-                <span className="font-medium">Usuários</span>
-             </button>
-          )}
-
-           <button 
-            onClick={() => setCurrentView('clients')}
-            className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${currentView === 'clients' ? 'bg-navy-800 text-gold-500 border-l-4 border-gold-500' : 'text-gray-300 hover:bg-navy-800 hover:text-white'}`}
-           >
-            <Users size={20} />
-            <span className="font-medium">Clientes</span>
-           </button>
+          {renderNavItems()}
         </nav>
 
         <div className="p-4 border-t border-navy-800">
@@ -646,15 +767,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 border-b border-gray-200">
-          <h1 className="text-xl font-serif text-navy-900 font-semibold">
-            {currentView === 'users' ? 'Gestão de Usuários' : 
-             currentView === 'entry' ? (isCollaborator ? 'Lançamento de Comissões' : 'Conferência de Comissões') :
-             currentView === 'clients' ? 'Clientes' : 'Visão Geral'}
+        <header className="bg-white shadow-sm h-14 md:h-16 flex items-center justify-between px-4 md:px-8 z-10 border-b border-gray-200 safe-area-top">
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 -ml-2 text-navy-900 hover:bg-gray-100 rounded-lg md:hidden"
+            aria-label="Abrir menu"
+          >
+            <Menu size={24} />
+          </button>
+
+          <h1 className="text-base md:text-xl font-serif text-navy-900 font-semibold truncate flex-1 md:flex-none text-center md:text-left">
+            {currentView === 'users' ? 'Usuários' : 
+             currentView === 'entry' ? (isCollaborator ? 'Lançamentos' : 'Conferência') :
+             currentView === 'clients' ? 'Clientes' : 
+             currentView === 'audit' ? 'Auditoria' : 'Dashboard'}
           </h1>
           
-          <div className="flex items-center space-x-4">
-             <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 md:space-x-4">
+             <div className="hidden sm:flex items-center space-x-2">
                 <span className="text-sm text-gray-500 text-right">
                     <div className="leading-tight">Olá, {user.name.split(' ')[0]}</div>
                     <div className="text-xs text-gold-600 font-medium uppercase tracking-wider">{user.role}</div>
@@ -667,7 +798,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </header>
 
         {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 safe-area-bottom">
             {renderContent()}
         </main>
       </div>

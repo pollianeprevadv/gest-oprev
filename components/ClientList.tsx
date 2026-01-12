@@ -138,22 +138,22 @@ export const ClientList: React.FC<ClientListProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-serif font-semibold text-navy-900">Clientes</h2>
-          <p className="text-gray-500 text-sm">Clique no nome para abrir os detalhes.</p>
+          <h2 className="text-xl md:text-2xl font-serif font-semibold text-navy-900">Clientes</h2>
+          <p className="text-gray-500 text-xs md:text-sm">Clique no nome para abrir os detalhes.</p>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-        <div className="p-4 border-b border-gray-100 flex flex-col gap-3">
-          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-            <div className="flex items-center space-x-2 text-gray-600 text-sm">
+        <div className="p-3 md:p-4 border-b border-gray-100 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div className="flex items-center space-x-2 text-gray-600 text-xs md:text-sm">
               <Users size={16} />
               <span>{filtered.length} de {clients.length} clientes</span>
             </div>
-            <div className="relative w-full md:w-64">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               <input
                 type="text"
@@ -166,13 +166,13 @@ export const ClientList: React.FC<ClientListProps> = ({
           </div>
           
           {/* Filtros por Status e Departamento */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as ClientStatus | 'all')}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gold-500"
+              className="px-2 md:px-3 py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:border-gold-500 flex-1 sm:flex-none"
             >
-              <option value="all">Todos os Status</option>
+              <option value="all">Todos Status</option>
               {Object.values(ClientStatus).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -181,9 +181,9 @@ export const ClientList: React.FC<ClientListProps> = ({
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value as Department | 'all')}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gold-500"
+              className="px-2 md:px-3 py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:border-gold-500 flex-1 sm:flex-none"
             >
-              <option value="all">Todos os Departamentos</option>
+              <option value="all">Todos Dept.</option>
               {Object.values(Department).map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
@@ -201,41 +201,45 @@ export const ClientList: React.FC<ClientListProps> = ({
                 const isExpanded = expandedId === client.id;
 
                 return (
-                  <li key={client.id} className="px-5 py-4 text-sm text-navy-900">
+                  <li key={client.id} className="px-3 md:px-5 py-3 md:py-4 text-sm text-navy-900">
                     {/* Header row */}
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start sm:items-center justify-between gap-2">
                       <button
                         onClick={() => toggleExpand(client.id)}
-                        className="flex items-center gap-2 font-medium text-base text-left hover:text-gold-700 flex-1"
+                        className="flex items-start sm:items-center gap-2 font-medium text-sm md:text-base text-left hover:text-gold-700 flex-1 min-w-0"
                       >
-                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        {client.name}
-                        <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
-                          {client.status || 'Lead'}
+                        <span className="flex-shrink-0 mt-0.5 sm:mt-0">
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </span>
-                        {client.responsibleDepartment && (
-                          <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            {client.responsibleDepartment}
+                        <span className="truncate">{client.name}</span>
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className={`px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium ${getStatusColor(client.status)}`}>
+                            {client.status || 'Lead'}
                           </span>
-                        )}
+                          {client.responsibleDepartment && (
+                            <span className="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-gray-100 text-gray-600 hidden sm:inline-flex">
+                              {client.responsibleDepartment}
+                            </span>
+                          )}
+                        </div>
                       </button>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
                         {canEditClients && !isEditing && (
                           <button
                             onClick={() => startEdit(client)}
-                            className="text-navy-900 hover:text-gold-600 text-xs flex items-center space-x-1"
+                            className="text-navy-900 hover:text-gold-600 text-xs flex items-center space-x-1 p-1"
                           >
                             <Edit3 size={14} />
-                            <span>Editar</span>
+                            <span className="hidden sm:inline">Editar</span>
                           </button>
                         )}
                         {canEditClients && isEditing && (
                           <button
                             onClick={saveEdit}
-                            className="text-green-700 hover:text-green-800 text-xs flex items-center space-x-1"
+                            className="text-green-700 hover:text-green-800 text-xs flex items-center space-x-1 p-1"
                           >
                             <Save size={14} />
-                            <span>Salvar</span>
+                            <span className="hidden sm:inline">Salvar</span>
                           </button>
                         )}
                         {canDeleteClients && !isEditing && (
@@ -245,9 +249,10 @@ export const ClientList: React.FC<ClientListProps> = ({
                                 onDeleteClient(client.id);
                               }
                             }}
-                            className="text-red-600 hover:text-red-700 text-xs"
+                            className="text-red-600 hover:text-red-700 text-xs p-1"
                           >
-                            Remover
+                            <span className="hidden sm:inline">Remover</span>
+                            <span className="sm:hidden">×</span>
                           </button>
                         )}
                       </div>
@@ -255,7 +260,7 @@ export const ClientList: React.FC<ClientListProps> = ({
 
                     {/* Expanded details */}
                     {isExpanded && (
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-700">
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 text-xs text-gray-700">
                         {/* Status */}
                         <div className="space-y-1">
                           <div className="font-semibold text-navy-900">Status</div>
@@ -494,7 +499,7 @@ export const ClientList: React.FC<ClientListProps> = ({
                         </div>
 
                         {/* Observações */}
-                        <div className="md:col-span-3 space-y-1">
+                        <div className="sm:col-span-2 md:col-span-3 space-y-1">
                           <div className="font-semibold text-navy-900">Providência/Observações</div>
                           {isEditing ? (
                             <textarea
