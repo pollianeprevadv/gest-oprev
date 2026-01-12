@@ -45,7 +45,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           <Logo />
         </div>
         
-        <h2 className="text-2xl font-serif text-center text-navy-900 mb-6">Acesso Restrito</h2>
+        <h2 className="text-2xl font-serif text-center text-navy-900 mb-6">Gestão de Comissões</h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -75,7 +75,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 sm:text-sm transition duration-150 ease-in-out"
-                placeholder="••••••••"
+                placeholder=""
               />
             </div>
           </div>
